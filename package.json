@@ -1,0 +1,20 @@
+{
+  "name": "APT",
+  "version": "1.0.0",
+  "description": "A transpiler from AQA pseudocode to Javascript",
+  "main": "src/app.ts",
+  "author": "Skye Purchase <atp45@cam.ac.uk>",
+  "license": "MIT",
+  "scripts": {
+      "build": "tsc",
+      "start": "node ./bin/app.js",
+      "dev": "ts-node ./src/app.ts"
+  },
+  "dependencies": {
+    "@types/node": "^20.10.7",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
+  }
+}
