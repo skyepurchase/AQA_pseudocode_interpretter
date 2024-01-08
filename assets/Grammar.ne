@@ -5,7 +5,7 @@ function keywordTransformSafe(map: Map<string, string>) {
     let types: string[] = Object.getOwnPropertyNames(map);
     for (let i = 0; i < types.length; i++) {
         let tokenType = types[i];
-        let item = map[tokenType];
+        let item = map.get(tokenType);
         let keywordList = Array.isArray(item) ? item : [item];
         keywordList.forEach(
             function(keyword: string) {
@@ -21,9 +21,11 @@ function keywordTransformSafe(map: Map<string, string>) {
 }
 
 const moo = require('moo');
-const lexer = moo.compile({
+export const lexer = moo.compile({
+    Keyword: [
+        'CONSTANT'
+    ],
     Comment: /\# .*/,
-    Identifier: /[a-zA-Z]\w*/,
     Int: /[0-9]+/,
     Plus: ['+'],
     Minus: ['-', '-', '-'], // These are not the same sign
@@ -31,8 +33,6 @@ const lexer = moo.compile({
     Div: ['/'],
     // TODO: follow the pseudocode exactly: ≠, ≤, ≥
     Rel: ['=', '<', '>', '!=', '<=', '>='],
-    Keyword: [
-        'CONSTANT'
-    ]
+    Identifier: /[a-zA-Z]\w*/
 })
 
