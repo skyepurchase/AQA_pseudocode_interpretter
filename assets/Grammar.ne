@@ -25,6 +25,8 @@ function keywordTransformSafe(map: Map<string, string>) {
 
 const moo = require('moo');
 const lexer = moo.compile({
+    Sep: [';'],
+    WS: { match: /[ \t\n\r]+/, lineBreaks: true },
     Keyword: [
         'CONSTANT'
     ],
@@ -76,6 +78,28 @@ const UNKNOWN: AST = { type: 'Unknown', properties: {}, children: {} };
 const processMain = (data: AST[]): AST => {
     const main = _cloneDeep(data[1]);
     return main;
+}
+
+/* Process sequences.
+The rule already matches sequences as cons lists so this is
+just a fancy binary operation.
+*/
+const processSequence = (data: PartialAST[]): AST => {
+    const lhs = _cloneDeep(data[0]);
+    const rhs = _cloneDeep(data[4]);
+    console.log("+++SEQ+++");
+    console.log(data);
+    console.log("+++++++++");
+    if (isAST(lhs) && isAST(rhs)) {
+        return {
+            type: 'Sequence',
+            properties: {},
+            children: { left: lhs, right: rhs }
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
 }
 
 /* Process additions and subtrations.
@@ -157,16 +181,20 @@ const processInteger = (data: PartialAST[]): AST => {
 
 # The Almighty Grammar
 
-main   -> _ AddSub _                    {% processMain %}
+main   -> _ Seq _                       {% processMain %}
+
+# Sequences
+Seq    -> AddSub _ %Sep _ Seq           {% processSequence %}
+        | AddSub                        {% id %}
 
 # Addition and subtraction
-AddSub -> AddSub _ %Plus _ MulDiv       {% processBinOp %}
-        | AddSub _ %Minus _ MulDiv      {% processBinOp %}
+AddSub -> MulDiv _ %Plus _ AddSub       {% processBinOp %}
+        | MulDiv _ %Minus _ AddSub      {% processBinOp %}
         | MulDiv                        {% id %}
 
 # Multiplication and division
-MulDiv -> MulDiv _ %Mul _ Un            {% processBinOp %}
-        | MulDiv _ %Div _ Un            {% processFraction %}
+MulDiv -> Un _ %Mul _ MulDiv            {% processBinOp %}
+        | Un _ %Div _ MulDiv            {% processFraction %}
         | Un                            {% id %}
 
 # Unaries of all kinds
@@ -179,4 +207,4 @@ Num    -> %Int                          {% processInteger %}
 
 # Whitespace. The important thing here is that the postprocessor
 # is a null-returning function. This is a memory efficiency trick.
-_ -> [\s]:*
+_ -> %WS:*
