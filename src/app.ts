@@ -52,7 +52,11 @@ readline.on("line", (line: string) => {
     } else if (line === "quit") {
         readline.close();
     } else {
-        input += line;
+        if (input) {
+            input += "\n" + line;
+        } else {
+            input = line;
+        }
     }
 })
 

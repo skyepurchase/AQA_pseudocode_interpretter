@@ -25,7 +25,7 @@ function keywordTransformSafe(map: Map<string, string>) {
 
 const moo = require('moo');
 const lexer = moo.compile({
-    Sep: [';'],
+    Sep: { match: /[\n|\r\n]+/, lineBreaks: true },
     WS: { match: /[ \t\n\r]+/, lineBreaks: true },
     Keyword: [
         'CONSTANT'
@@ -87,9 +87,6 @@ just a fancy binary operation.
 const processSequence = (data: PartialAST[]): AST => {
     const lhs = _cloneDeep(data[0]);
     const rhs = _cloneDeep(data[4]);
-    console.log("+++SEQ+++");
-    console.log(data);
-    console.log("+++++++++");
     if (isAST(lhs) && isAST(rhs)) {
         return {
             type: 'Sequence',
