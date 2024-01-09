@@ -83,21 +83,51 @@ For efficiency reasons the processing on whitespace should be null returning so 
 ### Parsing Rules
 
 ```
-main   -> _ AddSub _
+main   -> _ ADDSUB _
 
-AddSub -> MulDiv _ %Plus _ AddSub
-        | MulDiv _ %Minus _ AddSub
-        | MulDiv
+ADDSUB -> MULDIV _ %Plus _ ADDSUB
+        | MULDIV _ %Minus _ ADDSUB
+        | MULDIV
 
-MulDiv -> Un _ %Mul _ MulDiv
-        | Un _ %Div _ MulDiv
-        | Un
+MULDIV -> UN _ %Mul _ MULDIV
+        | UN _ %Div _ MULDIV
+        | UN
 
-Un     -> %Plus _ Un
-        | %Minus _ Un
+UN     -> %Plus _ UN
+        | %Minus _ UN
 
-Num    -> %int
+NUM    -> %Int
 
 _ -> [\s]:*
 ```
 
+## Onwards and Upwards
+
+These ideas extend to the entire grammar.
+These are easy examples that only need the simplest processing, in the following chapters more complicated ideas are implemented.
+
+## Sequences
+
+A program is not a single statement that is evaluated, it is a number of separate sequences that are evaluated in turn.
+These sequence may return results used by other sequences, or may effect the state of the whole program (if stateful).
+With just mathematical statements this makes limited sense as evaluating one mathematical expression does not effect the next.
+However, when we introduce more complex ideas this will be essential.
+
+### Tokens
+
+In pseudocode a new line suggests a new sequence that is distinct from the previous.
+This will still work when we get to code blocks later but for now this works.
+```
+Sep(\n)
+```
+
+### Rules
+
+All programs are sequences, they can be a single element sequence but they are still sequences.
+The rest of the parser still only parses arithmetic expressions so we just insert sequences between the entrypoint and addition and subtraction.
+```
+main   -> _ SEQ _
+
+SEQ    -> ADDSUB _ SEP _ SEQ
+        | ADDSUB
+```
