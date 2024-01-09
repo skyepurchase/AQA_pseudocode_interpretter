@@ -131,3 +131,38 @@ main   -> _ SEQ _
 SEQ    -> ADDSUB _ SEP _ SEQ
         | ADDSUB
 ```
+
+## Bracketting
+
+Because multiplication and division are so tightly bound it is impossible to generate all ASTs as `5/3+3` will only be
+```
+    +
+   / \
+  \   3
+ / \
+5   3
+```
+And nothing else.
+Adding bracketting allows for `5/(3+3)` which is a very different expression but now we have a major problem: "Balancing".
+`5/(3+3` is not valid because there is not closing bracket.
+Thankfully, Earley parsers can handle the balancing problem and so the necessary rules can be added.
+
+### Tokens
+
+```
+LBra('(')
+RBra(')')
+```
+
+### Rules
+
+When an expression gets down to multiplication and division then bracketting may occur to bind some addition or similar tighter.
+This bracketted expression behaves the same as the literal, `NUM`, in the `MULDIV` rule so it is replaced.
+```
+MULDIV -> BRA _ %Mul _ MULDIV
+        | BRA _ %Div _ MULDIV
+        | BRA
+
+BRA    -> %LBra _ ADDSUB _ %RBra
+        | NUM
+```
