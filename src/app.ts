@@ -38,11 +38,21 @@ const readline = require('readline').createInterface({
     output: process.stdout
 });
 
-readline.question('Programme: ', (input: string) => {
-    const parse: AST | { error: unknown } = parseProgram(input);
+let input: string = "";
 
-    if (isAST(parse)) {
-        console.log(ASTstringify(parse));
+readline.on("line", (line: string) => {
+    if (line === "parse") {
+        const parse = parseProgram(input);
+
+        if (isAST(parse)) {
+            console.log(ASTstringify(parse));
+        }
+
+        input = ""
+    } else if (line === "quit") {
+        readline.close();
+    } else {
+        input += line;
     }
-    readline.close();
-});
+})
+
