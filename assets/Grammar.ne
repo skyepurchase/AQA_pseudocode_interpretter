@@ -38,6 +38,8 @@ const lexer = moo.compile({
     Minus: ['-', '-', '-'], // These are not the same sign
     Mul: ['*'],
     Div: ['/'],
+    LBra: ['('],
+    RBra: [')'],
     // TODO: follow the pseudocode exactly: ≠, ≤, ≥
     Rel: ['=', '<', '>', '!=', '<=', '>='],
     Identifier: /[a-zA-Z]\w*/
@@ -48,12 +50,14 @@ import { Token } from 'moo';
 
 export interface Property {
     operation?: string,
-    significand?: string
+    significand?: string,
+    type?: string
 }
 
 export interface Children {
     left?: AST,
-    right?: AST
+    right?: AST,
+    argument?: AST
 }
 
 export interface AST {
@@ -142,13 +146,30 @@ const processFraction = (data: PartialAST[]): AST => {
 Super easy just add a node.
 */
 const processUnaryAddSub = (data: PartialAST[]): AST => {
-    const rhs = _cloneDeep(data[2])
+    const arg = _cloneDeep(data[2])
     const op = data[0];
-    if (isAST(rhs) && isToken(op)) {
+    if (isAST(arg) && isToken(op)) {
         return {
             type: 'UnaryOperation',
             properties: { operation: op.text },
-            children: { right: rhs }
+            children: { argument: arg }
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
+/* processBrackets.
+Just signify that the expression is in brackets
+*/
+const processBrackets = (data: PartialAST[]): AST => {
+    let arg = _cloneDeep(data[2]);
+    if (isAST(arg)) {
+        return {
+            type: 'Bracket',
+            properties: { type: 'round' },
+            children: { argument: arg }
         };
     } else {
         // This shouldn't trigger
@@ -197,6 +218,10 @@ MulDiv -> Un _ %Mul _ MulDiv            {% processBinOp %}
 # Unaries of all kinds
 Un     -> %Plus _ Un                    {% processUnaryAddSub %}
         | %Minus _ Un                   {% processUnaryAddSub %}
+        | Bra                           {% id %}
+
+# Brackets
+Bra    -> %LBra _ AddSub _ %RBra        {% processBrackets %}
         | Num                           {% id %}
 
 # Integers

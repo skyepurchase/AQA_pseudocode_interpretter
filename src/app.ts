@@ -20,8 +20,10 @@ function isAST(param: AST | { error: unknown }): param is AST {
 
 const ASTstringify = (ast: AST) : string => {
     const sep: string = ast.children.left && ast.children.right ? "," : "";
-    const childrenString: string = (ast.children.left ? ASTstringify(ast.children.left) : "") + sep + 
-                                 (ast.children.right ? ASTstringify(ast.children.right) : "");
+    const childrenString: string = ast.children.argument ?
+        ASTstringify(ast.children.argument) :
+        (ast.children.left ? ASTstringify(ast.children.left) : "") + sep + 
+        (ast.children.right ? ASTstringify(ast.children.right) : "");
 
     let returnString: string = "";
     if (ast.type === "Num") {
