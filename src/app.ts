@@ -61,12 +61,14 @@ const readline = require('readline').createInterface({
 
 let input: string = "";
 
+console.log("++++INPUT++++");
 readline.on("line", (line: string) => {
     if (line === "parse") {
+        console.log("+++++++++++++\n+++PROGRAM+++");
         const parse = parseProgram(input);
 
         if (isAST(parse)) {
-            console.log(ASTstringify(parse));
+            console.log(ASTstringify(parse), "\n+++++++++++++\n++++INPUT++++");
         }
 
         input = ""

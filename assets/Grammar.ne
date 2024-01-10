@@ -27,10 +27,7 @@ const moo = require('moo');
 const lexer = moo.compile({
     Sep: { match: /[\n|\r\n]+/, lineBreaks: true },
     WS: { match: /[ \t\n\r]+/, lineBreaks: true },
-    KW: { match: /[A-Z]+/, type: keywordTransformSafe({
-            Const: ['CONSTANT']
-        }),
-    },
+    Const: ['CONSTANT'],
     // TODO: follow pseudocode exactly: ←
     Ass: ['<-'],
     Comment: /\# .*/,
