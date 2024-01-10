@@ -52,7 +52,9 @@ import { Token } from 'moo';
 export interface Property {
     operation?: string,
     significand?: string,
-    type?: string
+    type?: string,
+    name?: string,
+    constant?: boolean,
 }
 
 export interface Children {
@@ -67,14 +69,14 @@ export interface AST {
     children: Children
 }
 
-type PartialAST = AST | Token;
+type PartialAST = AST | Token | undefined;
 
 function isAST(param: PartialAST): param is AST {
-    return (param as AST).properties !== undefined;
+    return param ? (param as AST).properties !== undefined : false;
 }
 
 function isToken(param: PartialAST): param is Token {
-    return (param as Token).text !== undefined;
+    return param ? (param as Token).text !== undefined : false;
 }
 
 const UNKNOWN: AST = { type: 'Unknown', properties: {}, children: {} };
@@ -97,6 +99,33 @@ const processSequence = (data: PartialAST[]): AST => {
             type: 'Sequence',
             properties: {},
             children: { left: lhs, right: rhs }
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
+/* Porcess variable and constant assignment.
+Need to check the length of the data as there may or may not be
+a keyword.
+*/
+const processAssignment = (data: PartialAST[]): AST => {
+    const arg = _cloneDeep(data[data.length - 1]);
+    let id: PartialAST = undefined;
+    if (data.length === 5) {
+        id = data[0];
+    } else if (data.length === 7) {
+        id = data[2];
+    }
+
+    if (isAST(arg) && isToken(id)) {
+        return {
+            type: 'Assignment',
+            /* processAssignment is only called with data length 7 when
+            the keyword "CONSTANT" is used */
+            properties: { name: id.text, constant: data.length === 7 },
+            children: { argument: arg }
         };
     } else {
         // This shouldn't trigger
@@ -193,6 +222,21 @@ const processInteger = (data: PartialAST[]): AST => {
     }
 }
 
+/* Process variables. Just return that boy 2: electric boogaloo. */
+const processVariable = (data: PartialAST[]): AST => {
+    const id = data[0];
+    if (isToken(id)) {
+        return {
+            type: 'Var',
+            properties: { name: id.text },
+            children: {}
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
 %}
 
 # Passing the lexer object
@@ -203,8 +247,14 @@ const processInteger = (data: PartialAST[]): AST => {
 main   -> _ SEQ _                       {% processMain %}
 
 # Sequences
-SEQ    -> ADDSUB _ %Sep _ SEQ           {% processSequence %}
+SEQ    -> ASS _ %Sep _ SEQ              {% processSequence %}
+        | ADDSUB _ %Sep _ SEQ           {% processSequence %}
+        | ASS                           {% id %}
         | ADDSUB                        {% id %}
+
+# Assignment
+ASS    -> %Id _ %Ass _ ADDSUB           {% processAssignment %}
+        | %Const _ %Id _ %Ass _ ADDSUB  {% processAssignment %}
 
 # Addition and subtraction
 ADDSUB -> MULDIV _ %Plus _ ADDSUB       {% processBinOp %}
@@ -224,6 +274,10 @@ UN     -> %Plus _ UN                    {% processUnaryAddSub %}
 # Brackets
 BRA    -> %LBra _ ADDSUB _ %RBra        {% processBrackets %}
         | NUM                           {% id %}
+        | VAR                           {% id %}
+
+# Variables
+VAR    -> %Id                           {% processVariable %}
 
 # Integers
 NUM    -> %Int                          {% processInteger %}

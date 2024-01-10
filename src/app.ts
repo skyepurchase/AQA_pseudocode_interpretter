@@ -28,6 +28,10 @@ const ASTstringify = (ast: AST) : string => {
     let returnString: string = "";
     if (ast.type === "Num") {
         returnString = ast.properties.significand ?? "NaN";
+    } else if (ast.type === "Var") {
+        returnString = ast.properties.name ?? "Unknown";
+    } else if (ast.type === "Assignment") {
+        returnString = ast.properties.name + ": " + childrenString;
     } else {
         returnString = (ast.properties.operation ?? "NOP") + "(" + childrenString +")";
     }

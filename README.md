@@ -192,6 +192,7 @@ SEQ    -> ...
         | ASS
 
 ASS    -> %Id _ %Ass _ ADDSUB
+        | %CONSTANT _ %Id _ %Ass _ ADDSUB
 
 BRA    -> ...
         | VAR
