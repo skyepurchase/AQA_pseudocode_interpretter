@@ -166,3 +166,35 @@ MULDIV -> BRA _ %Mul _ MULDIV
 BRA    -> %LBra _ ADDSUB _ %RBra
         | NUM
 ```
+
+## Variables
+
+In any program (or even mathematical expression) there are variables that help in reusing results rather than recalculating them.
+These can be declared, assigned, and used throughout the program.
+
+### Tokens
+
+```
+Ass(<-)
+Id(s)
+Keyword(CONSTANT)
+
+```
+
+### Rules
+
+Declaration and assignment can be treated similarly as an assignment operation, which is in fact binary.
+Reference (being used in the program) is the same as `NUM` and is just a literal that the interpretter/compiler can deal with.
+
+```
+SEQ    -> ...
+        | ASS _ %Sep _ SEQ
+        | ASS
+
+ASS    -> %Id _ %Ass _ ADDSUB
+
+BRA    -> ...
+        | VAR
+
+VAR    -> %Id
+```
