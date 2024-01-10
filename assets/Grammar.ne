@@ -212,7 +212,7 @@ const processInteger = (data: PartialAST[]): AST => {
     const op = data[0];
     if (isToken(op)) {
         return {
-            type: 'Num',
+            type: 'Number',
             properties: { significand: op.text },
             children: {}
         };
@@ -227,7 +227,7 @@ const processVariable = (data: PartialAST[]): AST => {
     const id = data[0];
     if (isToken(id)) {
         return {
-            type: 'Var',
+            type: 'Variable',
             properties: { name: id.text },
             children: {}
         };

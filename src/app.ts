@@ -19,21 +19,36 @@ function isAST(param: AST | { error: unknown }): param is AST {
 }
 
 const ASTstringify = (ast: AST) : string => {
-    const sep: string = ast.children.left && ast.children.right ? "," : "";
+    const sep: string = ast.children.left && ast.children.right ? ", " : "";
     const childrenString: string = ast.children.argument ?
         ASTstringify(ast.children.argument) :
         (ast.children.left ? ASTstringify(ast.children.left) : "") + sep + 
         (ast.children.right ? ASTstringify(ast.children.right) : "");
 
     let returnString: string = "";
-    if (ast.type === "Num") {
-        returnString = ast.properties.significand ?? "NaN";
-    } else if (ast.type === "Var") {
-        returnString = ast.properties.name ?? "Unknown";
-    } else if (ast.type === "Assignment") {
-        returnString = ast.properties.name + ": " + childrenString;
-    } else {
-        returnString = (ast.properties.operation ?? "NOP") + "(" + childrenString +")";
+    switch (ast.type) {
+        case "Number": {
+            returnString = ast.properties.significand ?? "NaN";
+            break;
+        }
+        case "Assignment": {
+            const start: string = ast.properties.constant ? "{" : ": ";
+            const end: string = ast.properties.constant ? "}" : "";
+            returnString = (ast.properties.name ?? "Unknown") + start + childrenString + end;
+            break;
+        }
+        case "Variable": {
+            returnString = ast.properties.name ?? "Unknown";
+            break;
+        }
+        case "Sequence": {
+            returnString = "[" + childrenString + "]";
+            break;
+        }
+        default: {
+            returnString = (ast.properties.operation ?? "NOP") + "(" + childrenString +")";
+            break;
+        }
     }
 
     return returnString;
