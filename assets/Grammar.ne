@@ -199,33 +199,33 @@ const processInteger = (data: PartialAST[]): AST => {
 
 # The Almighty Grammar
 
-main   -> _ Seq _                       {% processMain %}
+main   -> _ SEQ _                       {% processMain %}
 
 # Sequences
-Seq    -> AddSub _ %Sep _ Seq           {% processSequence %}
-        | AddSub                        {% id %}
+SEQ    -> ADDSUB _ %Sep _ SEQ           {% processSequence %}
+        | ADDSUB                        {% id %}
 
 # Addition and subtraction
-AddSub -> MulDiv _ %Plus _ AddSub       {% processBinOp %}
-        | MulDiv _ %Minus _ AddSub      {% processBinOp %}
-        | MulDiv                        {% id %}
+ADDSUB -> MULDIV _ %Plus _ ADDSUB       {% processBinOp %}
+        | MULDIV _ %Minus _ ADDSUB      {% processBinOp %}
+        | MULDIV                        {% id %}
 
 # Multiplication and division
-MulDiv -> Un _ %Mul _ MulDiv            {% processBinOp %}
-        | Un _ %Div _ MulDiv            {% processFraction %}
-        | Un                            {% id %}
+MULDIV -> UN _ %Mul _ MULDIV            {% processBinOp %}
+        | UN _ %Div _ MULDIV            {% processFraction %}
+        | UN                            {% id %}
 
 # Unaries of all kinds
-Un     -> %Plus _ Un                    {% processUnaryAddSub %}
-        | %Minus _ Un                   {% processUnaryAddSub %}
-        | Bra                           {% id %}
+UN     -> %Plus _ UN                    {% processUnaryAddSub %}
+        | %Minus _ UN                   {% processUnaryAddSub %}
+        | BRA                           {% id %}
 
 # Brackets
-Bra    -> %LBra _ AddSub _ %RBra        {% processBrackets %}
-        | Num                           {% id %}
+BRA    -> %LBra _ ADDSUB _ %RBra        {% processBrackets %}
+        | NUM                           {% id %}
 
 # Integers
-Num    -> %Int                          {% processInteger %}
+NUM    -> %Int                          {% processInteger %}
 
 # Whitespace. The important thing here is that the postprocessor
 # is a null-returning function. This is a memory efficiency trick.
