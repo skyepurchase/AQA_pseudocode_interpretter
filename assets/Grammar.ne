@@ -3,22 +3,22 @@
 @{%
 // See https://github.com/no-context/moo/issues/141
 // From https://github.com/isaacphysics/inequality-grammar/blob/master/assets/maths-grammar.ne#L5-L22
-function keywordTransformSafe(map: Map<string, string>) {
+function keywordTransformSafe(map: { [key: string]: string | string[] }) {
     let reverseMap: Map<string, string> = new Map;
     let types: string[] = Object.getOwnPropertyNames(map);
     for (let i = 0; i < types.length; i++) {
-        let tokenType = types[i];
-        let item = map.get(tokenType);
-        let keywordList = Array.isArray(item) ? item : [item];
+        let tokenType: string = types[i];
+        let item: string | string[] | undefined = map[tokenType];
+        let keywordList: string[] = item ? (Array.isArray(item) ? item : [item]) : [];
         keywordList.forEach(
-            function(keyword: string) {
+            function(keyword: string): void {
                 if (typeof keyword !== 'string') {
-                    throw new Error("keyword must be sting (in keyword '" + tokenType + "')");
+                    throw new Error("keyword must be string (in keyword '" + tokenType + "')");
                 }
                 reverseMap.set(keyword, tokenType);
         })
     }
-    return function(k: string) {
+    return function(k: string): string | undefined {
         return reverseMap.get(k);
     }
 }
@@ -27,11 +27,12 @@ const moo = require('moo');
 const lexer = moo.compile({
     Sep: { match: /[\n|\r\n]+/, lineBreaks: true },
     WS: { match: /[ \t\n\r]+/, lineBreaks: true },
-    Keyword: [
-        'CONSTANT'
-    ],
+    KW: { match: /[A-Z]+/, type: keywordTransformSafe({
+            Const: ['CONSTANT']
+        }),
+    },
     // TODO: follow pseudocode exactly: ←
-    Assignment: ['<-'],
+    Ass: ['<-'],
     Comment: /\# .*/,
     Int: /[0-9]+/,
     Plus: ['+'],
@@ -42,7 +43,7 @@ const lexer = moo.compile({
     RBra: [')'],
     // TODO: follow the pseudocode exactly: ≠, ≤, ≥
     Rel: ['=', '<', '>', '!=', '<=', '>='],
-    Identifier: /[a-zA-Z]\w*/
+    Id: /[a-zA-Z]\w*/
 })
 
 import _cloneDeep from 'lodash/cloneDeep';
