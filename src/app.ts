@@ -45,6 +45,12 @@ const ASTstringify = (ast: AST) : string => {
             returnString = "[" + childrenString + "]";
             break;
         }
+        case "Bracket": {
+            returnString = childrenString;
+            break;
+        }
+        case "UnaryOperation":
+        case "BinaryOperation":
         default: {
             returnString = (ast.properties.operation ?? "NOP") + "(" + childrenString +")";
             break;
@@ -64,11 +70,11 @@ let input: string = "";
 console.log("++++INPUT++++");
 readline.on("line", (line: string) => {
     if (line === "parse") {
-        console.log("+++++++++++++\n+++PROGRAM+++");
+        console.log("+++++++++++++\n\n+++PROGRAM+++");
         const parse = parseProgram(input);
 
         if (isAST(parse)) {
-            console.log(ASTstringify(parse), "\n+++++++++++++\n++++INPUT++++");
+            console.log(ASTstringify(parse), "\n+++++++++++++\n\n++++INPUT++++");
         }
 
         input = ""

@@ -46,8 +46,14 @@ const lexer = moo.compile({
 import _cloneDeep from 'lodash/cloneDeep';
 import { Token } from 'moo';
 
+export type Operation = 'ADD'
+                      | 'SUB'
+                      | 'MUL'
+                      | 'DIV'
+                      | 'NOP'
+
 export interface Property {
-    operation?: string,
+    operation?: Operation,
     significand?: string,
     type?: string,
     name?: string,
@@ -60,8 +66,17 @@ export interface Children {
     argument?: AST
 }
 
+export type Type = 'Sequence'
+                  | 'Assignment'
+                  | 'BinaryOperation'
+                  | 'UnaryOperation'
+                  | 'Bracket'
+                  | 'Variable'
+                  | 'Number'
+                  | 'Unknown'
+
 export interface AST {
-    type: string,
+    type: Type,
     properties: Property,
     children: Children
 }
@@ -74,6 +89,18 @@ function isAST(param: PartialAST): param is AST {
 
 function isToken(param: PartialAST): param is Token {
     return param ? (param as Token).text !== undefined : false;
+}
+
+function stringToOp(param: string): Operation {
+    switch (param) {
+        case ("+"): return "ADD";
+        case ("*"): return "MUL";
+        case ("/"): return "DIV";
+        case ('-'):
+        case ('-'):
+        case ('-'): return "SUB";
+        default: return "NOP";
+    }
 }
 
 const UNKNOWN: AST = { type: 'Unknown', properties: {}, children: {} };
@@ -140,7 +167,7 @@ const processBinOp = (data: PartialAST[]): AST => {
     if (isAST(lhs) && isAST(rhs) && isToken(op)) {
         return {
             type: 'BinaryOperation',
-            properties: { operation: op.text },
+            properties: { operation: stringToOp(op.text) },
             children: { left: lhs, right: rhs }
         };
     } else {
@@ -160,7 +187,7 @@ const processFraction = (data: PartialAST[]): AST => {
     if (isAST(lhs) && isAST(rhs) && isToken(op)) {
         return {
             type: 'BinaryOperation',
-            properties: { operation: op.text },
+            properties: { operation: stringToOp(op.text) },
             children: { left: lhs, right: rhs }
         };
     } else {
@@ -178,7 +205,7 @@ const processUnaryAddSub = (data: PartialAST[]): AST => {
     if (isAST(arg) && isToken(op)) {
         return {
             type: 'UnaryOperation',
-            properties: { operation: op.text },
+            properties: { operation: stringToOp(op.text) },
             children: { argument: arg }
         };
     } else {
