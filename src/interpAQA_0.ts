@@ -41,7 +41,6 @@ function interpret(prog: AST, store: Map<string, Store>): [number, Map<string, S
             return [-1, error];
         }
         case ('Assignment'): {
-            // TODO: check constants
             if (prog.children.argument && prog.properties.name && (prog.properties.constant !== undefined)) {
                 const [value, store1]: [number, Map<string, Store>] = interpret(prog.children.argument, store);
                 if (store1.get(prog.properties.name)?.isConst) {

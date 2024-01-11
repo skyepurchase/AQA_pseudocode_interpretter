@@ -1,18 +1,6 @@
-// import { isUndefined } from 'lodash';
-// import { lexer } from './Grammar'
-//
-// readline.question('Programme: ', (name: string) => {
-//     lexer.reset(name);
-//     let token: Object | undefined = lexer.next();
-//     while (!isUndefined(token)) {
-//         console.log(token);
-//         token = lexer.next();
-//     }
-//     readline.close();
-// });
-
 import { AST } from "./Grammar";
-import parseProgram from "./parseAQA"
+import parseProgram from "./parseAQA";
+import interpretProgram from "./interpAQA_0";
 
 function isAST(param: AST | { error: unknown }): param is AST {
     return (param as AST).type !== undefined;
@@ -78,7 +66,17 @@ readline.on("line", (line: string) => {
         }
 
         input = ""
+    } else if (line === "run") {
+        console.log("+++++++++++++\n\n+++OUTPUT++++");
+        const parse = parseProgram(input);
+
+        if (isAST(parse)) {
+            console.log(interpretProgram(parse), "\n+++++++++++++\n\n++++INPUT++++");
+        }
+
+        input = "";
     } else if (line === "quit") {
+        console.log("+++++++++++++");
         readline.close();
     } else {
         if (input) {
