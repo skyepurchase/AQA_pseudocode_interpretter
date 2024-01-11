@@ -28,8 +28,9 @@ const lexer = moo.compile({
     Sep: { match: /[\n|\r\n]+/, lineBreaks: true },
     WS: { match: /[ \t\n\r]+/, lineBreaks: true },
     Const: ['CONSTANT'],
-    True: ['True'],
-    False: ['False'],
+    Gate: ['AND', 'OR'],
+    Not: ['NOT'],
+    Bool: ['True', 'False'],
     // TODO: follow pseudocode exactly: ←
     Ass: ['<-'],
     Comment: /\# .*/,
@@ -53,6 +54,9 @@ export type Operation = 'ADD'
                       | 'SUB'
                       | 'MUL'
                       | 'DIV'
+                      | 'AND'
+                      | 'OR'
+                      | 'NOT'
                       | 'NOP'
 
 export type Relation = 'EQ'
@@ -113,6 +117,9 @@ function stringToOp(param: string): Operation {
         case '-':
         case '-':
         case '-': return "SUB";
+        case 'AND': return "AND";
+        case 'OR': return "OR";
+        case 'NOT': return "NOT";
         default: return "NOP";
     }
 }
@@ -242,10 +249,10 @@ const processFraction = (data: PartialAST[]): AST => {
     }
 }
 
-/* process unary addition and subtraction.
+/* process unary operation.
 Super easy just add a node.
 */
-const processUnaryAddSub = (data: PartialAST[]): AST => {
+const processUnaryOp = (data: PartialAST[]): AST => {
     const arg = _cloneDeep(data[2])
     const op = data[0];
     if (isAST(arg) && isToken(op)) {
@@ -364,8 +371,8 @@ MULDIV -> UN _ %Mul _ MULDIV            {% processBinOp %}
         | UN                            {% id %}
 
 # Unaries of all kinds
-UN     -> %Plus _ UN                    {% processUnaryAddSub %}
-        | %Minus _ UN                   {% processUnaryAddSub %}
+UN     -> %Plus _ UN                    {% processUnaryOp %}
+        | %Minus _ UN                   {% processUnaryOp %}
         | BRA                           {% id %}
 
 # Brackets
@@ -381,8 +388,13 @@ NUM    -> %Int                          {% processNumber %}
         | %Float                        {% processNumber %}
 
 # Booleans
-BOOL   -> %True                         {% processBoolean %}
-        | %False                        {% processBoolean %}
+BOOL   -> BBRA _ %Gate _ BBRA           {% processBinOp %}
+        | %Not _ BBRA                   {% processUnaryOp %}
+        | %Bool                         {% processBoolean %}
+
+# Boolean brackets
+BBRA   -> %LBra _ REL _ %RBra           {% processBrackets %}
+        | BOOL                          {% id %}
 
 # Whitespace. The important thing here is that the postprocessor
 # is a null-returning function. This is a memory efficiency trick.

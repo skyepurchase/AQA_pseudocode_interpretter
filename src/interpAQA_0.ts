@@ -19,6 +19,13 @@ function doOperation(operation: Operation, value1: Value, value2: Value): Value 
             case "NOP": return value1;
             default: return -1;
         }
+    } else if (isBoolean(value1) && isBoolean(value2)) {
+        switch (operation) {
+            case "AND": return value1 && value2;
+            case "OR": return value1 || value2;
+            case "NOP": return value1;
+            default: return false;
+        }
     }
     return -1;
 }
@@ -29,9 +36,13 @@ function doUnary(operation: Operation, value1: Value): Value {
             case "SUB": return - value1;
             case "ADD":
             case "NOP": return value1;
-            case "MUL":
-            case "DIV":
             default: return -1;
+        }
+    } else if (isBoolean(value1)) {
+        switch (operation) {
+            case "NOT": return !value1;
+            case "NOP": return value1;
+            default: return false;
         }
     }
     return -1;
@@ -153,8 +164,6 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
             return [-1, error];
         }
     }
-
-    return [0, new Map()];
 }
 
 export default function (prog: AST): Value {
