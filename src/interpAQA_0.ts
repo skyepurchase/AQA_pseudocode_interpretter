@@ -1,4 +1,3 @@
-import { parseInt } from 'lodash';
 import { AST, Operation } from './Grammar'
 
 interface Store {
@@ -76,6 +75,15 @@ function interpret(prog: AST, store: Map<string, Store>): [number, Map<string, S
             error.set("ERROR! Malformed unary operation.", -1);
             return [-1, error];
         }
+        case ('Bracket'): {
+            if (prog.children.argument) {
+                const [value, store1]: [number, Map<string, Store>] = interpret(prog.children.argument, store);
+                return [value, store1];
+            }
+            const error = new Map();
+            error.set("ERROR! Malformed bracket.", -1);
+            return [-1, error];
+        }
         case ('Variable'): {
             if (prog.properties.name) {
                 const value: Store | undefined = store.get(prog.properties.name);
@@ -89,7 +97,7 @@ function interpret(prog: AST, store: Map<string, Store>): [number, Map<string, S
         }
         case ('Number'): {
             if  (prog.properties.significand) {
-                const value: number = parseInt(prog.properties.significand);
+                const value: number = parseFloat(prog.properties.significand);
                 return [value, store];
             }
             const error = new Map();
