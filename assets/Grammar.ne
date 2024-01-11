@@ -341,11 +341,16 @@ SEQ    -> ASS _ %Sep _ SEQ              {% processSequence %}
         | ADDSUB                        {% id %}
 
 # Assignment
-ASS    -> %Id _ %Ass _ ADDSUB           {% processAssignment %}
-        | %Const _ %Id _ %Ass _ ADDSUB  {% processAssignment %}
+ASS    -> %Id _ %Ass _ VAL              {% processAssignment %}
+        | %Const _ %Id _ %Ass _ VAL     {% processAssignment %}
 
 # Relations
 REL    -> ADDSUB _ %Rel _ ADDSUB        {% processRelation %}
+        | BOOL                          {% id %}
+
+# Assignment values
+VAL    -> ADDSUB                        {% id %}
+        | VAR                           {% id %}
         | BOOL                          {% id %}
 
 # Addition and subtraction
