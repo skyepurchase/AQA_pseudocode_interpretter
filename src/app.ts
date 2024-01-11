@@ -28,12 +28,12 @@ const ASTstringify = (ast: AST) : string => {
         }
         case "Conditional": {
             if (ast.children.argument && ast.children.left && ast.children.right) {
-                returnString = ASTstringify(ast.children.argument) + " ? "
+                returnString = "(" + ASTstringify(ast.children.argument) + " ? "
                              + ASTstringify(ast.children.left) +
                              (ast.properties.type === "if-then-else" ?
                               (" : " + ASTstringify(ast.children.right)) :
                               ""
-                             );
+                             ) + ")";
                 break;
             }
             returnString = "Bad Conditional";

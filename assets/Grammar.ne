@@ -202,11 +202,11 @@ Want to make this as easy to deal with when interpretting
 */
 const processConditional = (data: PartialAST[]): AST => {
     const arg = _cloneDeep(data[2]);
-    const lhs = _cloneDeep(data[6]);
+    const lhs = _cloneDeep(data[7]);
     let rhs: PartialAST = _cloneDeep(UNKNOWN);
-    const isIfThenElse = isToken(data[8]) && data[8].type === "Else";
+    const isIfThenElse = isToken(data[10]) && data[10].type === "Else";
     if (isIfThenElse) {
-        rhs = _cloneDeep(data[10]);
+        rhs = _cloneDeep(data[13]);
     }
 
     if (isAST(arg) && isAST(lhs) && isAST(rhs)) {
@@ -387,13 +387,13 @@ ASS    -> %Id _ %Ass _ VAL              {% processAssignment %}
 # Conditional
 # Horrific in my opinion
 COND   -> %If _ REL _ %Then %Sep
-            SEQ %Sep
-            %Else %Sep
-            SEQ %Sep
-            %Fi                         {% processConditional %}
+            _ SEQ %Sep
+            _ %Else %Sep
+            _ SEQ %Sep
+            _ %Fi                         {% processConditional %}
         | %If _ REL _ %Then %Sep
-            SEQ %Sep
-            %Fi                         {% processConditional %}
+            _ SEQ %Sep
+            _ %Fi                         {% processConditional %}
 
 # Relations
 REL    -> ADDSUB _ %Rel _ ADDSUB        {% processRelation %}
