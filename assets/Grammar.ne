@@ -28,6 +28,8 @@ const lexer = moo.compile({
     Sep: { match: /[\n|\r\n]+/, lineBreaks: true },
     WS: { match: /[ \t\n\r]+/, lineBreaks: true },
     Const: ['CONSTANT'],
+    True: ['True'],
+    False: ['False'],
     // TODO: follow pseudocode exactly: ←
     Ass: ['<-'],
     Comment: /\# .*/,
@@ -53,12 +55,21 @@ export type Operation = 'ADD'
                       | 'DIV'
                       | 'NOP'
 
+export type Relation = 'EQ'
+                     | 'GT'
+                     | 'LT'
+                     | 'GEQ'
+                     | 'LEQ'
+                     | 'NEQ'
+                     | 'NOP'
+
 export interface Property {
     operation?: Operation,
     significand?: string,
     type?: string,
     name?: string,
     constant?: boolean,
+    relation?: Relation
 }
 
 export interface Children {
@@ -69,11 +80,13 @@ export interface Children {
 
 export type Type = 'Sequence'
                   | 'Assignment'
+                  | 'Relation'
                   | 'BinaryOperation'
                   | 'UnaryOperation'
                   | 'Bracket'
                   | 'Variable'
                   | 'Number'
+                  | 'Boolean'
                   | 'Unknown'
 
 export interface AST {
@@ -94,12 +107,24 @@ function isToken(param: PartialAST): param is Token {
 
 function stringToOp(param: string): Operation {
     switch (param) {
-        case ("+"): return "ADD";
-        case ("*"): return "MUL";
-        case ("/"): return "DIV";
-        case ('-'):
-        case ('-'):
-        case ('-'): return "SUB";
+        case '+': return "ADD";
+        case '*': return "MUL";
+        case '/': return "DIV";
+        case '-':
+        case '-':
+        case '-': return "SUB";
+        default: return "NOP";
+    }
+}
+
+function stringToRel(param: string): Relation {
+    switch (param) {
+        case '=': return "EQ";
+        case '<': return "LT";
+        case '>': return "GT";
+        case '!=': return "NEQ";
+        case '<=': return "LEQ";
+        case '>=': return "GEQ";
         default: return "NOP";
     }
 }
@@ -157,6 +182,27 @@ const processAssignment = (data: PartialAST[]): AST => {
         return _cloneDeep(UNKNOWN);
     }
 }
+
+/* Process relations.
+Should be easy.
+*/
+const processRelation = (data: PartialAST[]): AST => {
+    const lhs = _cloneDeep(data[0]);
+    const rhs = _cloneDeep(data[4]);
+    const rel = data[2];
+    if (isAST(lhs) && isAST(rhs) && isToken(rel)) {
+        console.log(rel, stringToRel(rel.text));
+        return {
+            type: 'Relation',
+            properties: { relation: stringToRel(rel.text) },
+            children: { left: lhs, right: rhs }
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
 
 /* Process additions and subtrations.
 Should be easy.
@@ -262,6 +308,22 @@ const processVariable = (data: PartialAST[]): AST => {
     }
 }
 
+/* Process booleans. This is getting old */
+const processBoolean = (data: PartialAST[]): AST => {
+    const id = data[0];
+    if (isToken(id)) {
+        return {
+            type: 'Boolean',
+            properties: { significand: id.text },
+            children: {}
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
+
 %}
 
 # Passing the lexer object
@@ -273,13 +335,19 @@ main   -> _ SEQ _                       {% processMain %}
 
 # Sequences
 SEQ    -> ASS _ %Sep _ SEQ              {% processSequence %}
+        | REL _ %Sep _ SEQ              {% processSequence %}
         | ADDSUB _ %Sep _ SEQ           {% processSequence %}
+        | REL                           {% id %}
         | ASS                           {% id %}
         | ADDSUB                        {% id %}
 
 # Assignment
 ASS    -> %Id _ %Ass _ ADDSUB           {% processAssignment %}
         | %Const _ %Id _ %Ass _ ADDSUB  {% processAssignment %}
+
+# Relations
+REL    -> ADDSUB _ %Rel _ ADDSUB        {% processRelation %}
+        | BOOL                          {% id %}
 
 # Addition and subtraction
 ADDSUB -> MULDIV _ %Plus _ ADDSUB       {% processBinOp %}
@@ -307,6 +375,10 @@ VAR    -> %Id                           {% processVariable %}
 # Integers
 NUM    -> %Int                          {% processNumber %}
         | %Float                        {% processNumber %}
+
+# Booleans
+BOOL   -> %True                         {% processBoolean %}
+        | %False                        {% processBoolean %}
 
 # Whitespace. The important thing here is that the postprocessor
 # is a null-returning function. This is a memory efficiency trick.

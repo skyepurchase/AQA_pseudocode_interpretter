@@ -15,6 +15,7 @@ const ASTstringify = (ast: AST) : string => {
 
     let returnString: string = "";
     switch (ast.type) {
+        case "Boolean":
         case "Number": {
             returnString = ast.properties.significand ?? "NaN";
             break;
@@ -37,10 +38,14 @@ const ASTstringify = (ast: AST) : string => {
             returnString = childrenString;
             break;
         }
+        case "Relation": {
+            returnString = (ast.properties.relation ?? "NOP") + "(" + childrenString + ")";
+            break;
+        }
         case "UnaryOperation":
         case "BinaryOperation":
         default: {
-            returnString = (ast.properties.operation ?? "NOP") + "(" + childrenString +")";
+            returnString = (ast.properties.operation ?? "NOP") + "(" + childrenString + ")";
             break;
         }
     }
