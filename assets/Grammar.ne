@@ -27,10 +27,6 @@ const moo = require('moo');
 const lexer = moo.compile({
     Sep: { match: /[\n|\r\n]+/, lineBreaks: true },
     WS: { match: /[ \t\n\r]+/, lineBreaks: true },
-    Const: ['CONSTANT'],
-    Gate: ['AND', 'OR'],
-    Not: ['NOT'],
-    Bool: ['True', 'False'],
     // TODO: follow pseudocode exactly: ←
     Ass: ['<-'],
     Comment: /\# .*/,
@@ -44,7 +40,13 @@ const lexer = moo.compile({
     RBra: [')'],
     // TODO: follow the pseudocode exactly: ≠, ≤, ≥
     Rel: ['=', '<', '>', '!=', '<=', '>='],
-    Id: /[a-zA-Z]\w*/
+    Id: { match: /[a-zA-Z]\w*/, type: keywordTransformSafe({
+            Const: ['CONSTANT'],
+            Gate: ['AND', 'OR'],
+            Not: ['NOT'],
+            Bool: ['True', 'False'],
+        })
+    }
 })
 
 import _cloneDeep from 'lodash/cloneDeep';
