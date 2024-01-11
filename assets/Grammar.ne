@@ -390,10 +390,14 @@ COND   -> %If _ REL _ %Then %Sep
             _ SEQ %Sep
             _ %Else %Sep
             _ SEQ %Sep
-            _ %Fi                         {% processConditional %}
+            _ %Fi                       {% processConditional %}
         | %If _ REL _ %Then %Sep
             _ SEQ %Sep
-            _ %Fi                         {% processConditional %}
+            _ %Fi                       {% processConditional %}
+        | %If _ REL _ %Then %Sep
+            _ SEQ %Sep
+            _ %Else _ _ COND            {% processConditional %}
+#                   ^^^ this is a hack to act like the first case
 
 # Relations
 REL    -> ADDSUB _ %Rel _ ADDSUB        {% processRelation %}
