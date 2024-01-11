@@ -31,6 +31,7 @@ const lexer = moo.compile({
     // TODO: follow pseudocode exactly: ←
     Ass: ['<-'],
     Comment: /\# .*/,
+    Float: /[0-9]+\.[0-9]+/,
     Int: /[0-9]+/,
     Plus: ['+'],
     Minus: ['-', '-', '-'], // These are not the same sign
@@ -231,8 +232,8 @@ const processBrackets = (data: PartialAST[]): AST => {
     }
 }
 
-/* process integers. Just return that boy. */
-const processInteger = (data: PartialAST[]): AST => {
+/* Process floats and integers. Just return that boy. */
+const processNumber = (data: PartialAST[]): AST => {
     const op = data[0];
     if (isToken(op)) {
         return {
@@ -304,7 +305,8 @@ BRA    -> %LBra _ ADDSUB _ %RBra        {% processBrackets %}
 VAR    -> %Id                           {% processVariable %}
 
 # Integers
-NUM    -> %Int                          {% processInteger %}
+NUM    -> %Int                          {% processNumber %}
+        | %Float                        {% processNumber %}
 
 # Whitespace. The important thing here is that the postprocessor
 # is a null-returning function. This is a memory efficiency trick.
