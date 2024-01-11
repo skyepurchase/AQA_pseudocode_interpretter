@@ -199,3 +199,23 @@ BRA    -> ...
 
 VAR    -> %Id
 ```
+
+## Interpretter
+
+Now that the program is more than correctly written arithmetic expressions it is worthwhile to interpret the language.
+This means reading in the symbols from the AST, carrying out operations (in javascript) with the properties and recursively calling for the children in the AST.
+
+The collection of symbols `ADD(NUM(4), SUB(NUM(3), NUM(2)))` needs to be slowly unpacked to arrive at the answer of `5`.
+The interpretter will receive the symbol `ADD` with children `NUM(4)` and `SUB(NUM(3), NUM(2))` and must calculate their sum.
+However, `SUB(...)` is not a number and `NUM(4)` is not a number (it represents a number but it isn't the javascript number 4.
+Both of these need to be evaluated, using the same function, returning the javascript number representation 4 and 1.
+
+Most symbols are straight forward, either calculating the obvious operation or converting the number representation to a javascript number.
+The interesting area is variables, as these can be assigned early on, access later, and even reassigned.
+The concept of a store mapping variable names to javascript numbers is introduced.
+Whenever there is a variable assignment the store is updated placing the value into the store.
+When the variable is referenced the store is accessed and the value of the variable is returned.
+
+In some languages you must declare space to put the variable but here if an assignment is occurred we assume space exists.
+The psuedocode does however include constants, so instead of storing just the number in the store an additional `isConst` property is added.
+If an assignment occurs to a variable that already exists that has the property `isConst` the assignment fails and and error is thrown.
