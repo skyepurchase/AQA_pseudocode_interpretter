@@ -191,7 +191,6 @@ const processRelation = (data: PartialAST[]): AST => {
     const rhs = _cloneDeep(data[4]);
     const rel = data[2];
     if (isAST(lhs) && isAST(rhs) && isToken(rel)) {
-        console.log(rel, stringToRel(rel.text));
         return {
             type: 'Relation',
             properties: { relation: stringToRel(rel.text) },
