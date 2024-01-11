@@ -26,6 +26,19 @@ const ASTstringify = (ast: AST) : string => {
             returnString = (ast.properties.name ?? "Unknown") + start + childrenString + end;
             break;
         }
+        case "Conditional": {
+            if (ast.children.argument && ast.children.left && ast.children.right) {
+                returnString = ASTstringify(ast.children.argument) + " ? "
+                             + ASTstringify(ast.children.left) +
+                             (ast.properties.type === "if-then-else" ?
+                              (" : " + ASTstringify(ast.children.right)) :
+                              ""
+                             );
+                break;
+            }
+            returnString = "Bad Conditional";
+            break;
+        }
         case "Variable": {
             returnString = ast.properties.name ?? "Unknown";
             break;

@@ -41,6 +41,10 @@ const lexer = moo.compile({
     // TODO: follow the pseudocode exactly: ≠, ≤, ≥
     Rel: ['=', '<', '>', '!=', '<=', '>='],
     Id: { match: /[a-zA-Z]\w*/, type: keywordTransformSafe({
+            If: ['IF'],
+            Then: ['THEN'],
+            Else: ['ELSE'],
+            Fi: ['ENDIF'],
             Const: ['CONSTANT'],
             Gate: ['AND', 'OR'],
             Not: ['NOT'],
@@ -86,6 +90,7 @@ export interface Children {
 
 export type Type = 'Sequence'
                   | 'Assignment'
+                  | 'Conditional'
                   | 'Relation'
                   | 'BinaryOperation'
                   | 'UnaryOperation'
@@ -186,6 +191,30 @@ const processAssignment = (data: PartialAST[]): AST => {
             properties: { name: id.text, constant: data.length === 7 },
             children: { argument: arg }
         };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
+/* Process conditional if-then-else and if-then.
+Want to make this as easy to deal with when interpretting
+*/
+const processConditional = (data: PartialAST[]): AST => {
+    const arg = _cloneDeep(data[2]);
+    const lhs = _cloneDeep(data[6]);
+    let rhs: PartialAST = _cloneDeep(UNKNOWN);
+    const isIfThenElse = isToken(data[8]) && data[8].type === "Else";
+    if (isIfThenElse) {
+        rhs = _cloneDeep(data[10]);
+    }
+
+    if (isAST(arg) && isAST(lhs) && isAST(rhs)) {
+        return {
+            type: 'Conditional',
+            properties: { type: isIfThenElse ? "if-then-else" : "if-then" },
+            children: { argument: arg, left: lhs, right: rhs }
+        }
     } else {
         // This shouldn't trigger
         return _cloneDeep(UNKNOWN);
@@ -343,15 +372,28 @@ main   -> _ SEQ _                       {% processMain %}
 
 # Sequences
 SEQ    -> ASS _ %Sep _ SEQ              {% processSequence %}
+        | COND _ %Sep _ SEQ             {% processSequence %}
         | REL _ %Sep _ SEQ              {% processSequence %}
         | ADDSUB _ %Sep _ SEQ           {% processSequence %}
-        | REL                           {% id %}
         | ASS                           {% id %}
+        | COND                          {% id %}
+        | REL                           {% id %}
         | ADDSUB                        {% id %}
 
 # Assignment
 ASS    -> %Id _ %Ass _ VAL              {% processAssignment %}
         | %Const _ %Id _ %Ass _ VAL     {% processAssignment %}
+
+# Conditional
+# Horrific in my opinion
+COND   -> %If _ REL _ %Then %Sep
+            SEQ %Sep
+            %Else %Sep
+            SEQ %Sep
+            %Fi                         {% processConditional %}
+        | %If _ REL _ %Then %Sep
+            SEQ %Sep
+            %Fi                         {% processConditional %}
 
 # Relations
 REL    -> ADDSUB _ %Rel _ ADDSUB        {% processRelation %}

@@ -90,6 +90,27 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
             error.set("ERROR! Malformed assignment.", -1);
             return [-1, error];
         }
+        case 'Conditional': {
+            if (prog.children.argument && prog.children.left && prog.children.right) {
+                const [value1, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
+                if (isBoolean(value1)) {
+                    const [value2, store2] = value1 ?
+                        interpret(prog.children.left, store1) :
+                        (prog.properties.type === "if-then-else" ? 
+                            interpret(prog.children.right, store1) :
+                            [0, store1]);
+
+                    return [value2, store2];
+                } else {
+                    const error = new Map();
+                    error.set("ERROR! Non-boolean condition", -1);
+                    return [-1, error];
+                }
+            }
+            const error = new Map();
+            error.set("ERROR! Malformed conditional.", -1);
+            return [-1, error];
+        }
         case 'Relation': {
             if (prog.children.left && prog.children.right && prog.properties.relation) {
                 const [value1, store1]: [Value, Map<string, Store>] = interpret(prog.children.left, store);
@@ -98,6 +119,9 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
 
                 return [res, store2];
             }
+            const error = new Map();
+            error.set("ERROR! Malformed relation.", -1);
+            return [-1, error];
         }
         case 'BinaryOperation': {
             if (prog.children.left && prog.children.right && prog.properties.operation) {
