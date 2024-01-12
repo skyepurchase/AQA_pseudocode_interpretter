@@ -1,15 +1,25 @@
 import { isBoolean, isNumber } from 'lodash';
 import { AST, Operation, Relation } from './Grammar'
 
-type Value = number | boolean
+interface ERROR {
+    message: string
+}
+
+type Value = number | boolean | ERROR
 
 interface Store {
     value: Value,
     isConst: boolean
 }
 
-// TODO: add an ERROR type for Value
+function isERROR(param: Value): param is ERROR {
+    return (param as ERROR).message !== undefined;
+}
+
 function doOperation(operation: Operation, value1: Value, value2: Value): Value {
+    if (isERROR(value1)) return value1;
+    if (isERROR(value2)) return value2;
+
     if (isNumber(value1) && isNumber(value2)) {
         switch (operation) {
             case "ADD": return value1 + value2;
@@ -17,38 +27,43 @@ function doOperation(operation: Operation, value1: Value, value2: Value): Value 
             case "MUL": return value1 * value2;
             case "DIV": return value1 / value2;
             case "NOP": return value1;
-            default: return -1;
+            default: return { message: "ERROR! Received numbers was expecting booleans." };
         }
     } else if (isBoolean(value1) && isBoolean(value2)) {
         switch (operation) {
             case "AND": return value1 && value2;
             case "OR": return value1 || value2;
             case "NOP": return value1;
-            default: return false;
+            default: return { message: "ERROR! Received booleans was expecting numbers." };
         }
     }
-    return -1;
+    return { message: "ERROR! Received non-matching or non-valid types." };
 }
 
 function doUnary(operation: Operation, value1: Value): Value {
+    if (isERROR(value1)) return value1;
+
     if (isNumber(value1)) {
         switch (operation) {
             case "SUB": return - value1;
             case "ADD":
             case "NOP": return value1;
-            default: return -1;
+            default: return { message: "ERROR! Received a number was expecting a boolean." };
         }
     } else if (isBoolean(value1)) {
         switch (operation) {
             case "NOT": return !value1;
             case "NOP": return value1;
-            default: return false;
+            default: return { message: "ERROR! Received boolean was expecting a number." };
         }
     }
-    return -1;
+    return { message: "ERROR! Received non-valid type." };
 }
 
 function doRelation(relation: Relation, value1: Value, value2: Value): Value {
+    if (isERROR(value1)) return value1;
+    if (isERROR(value2)) return value2;
+
     if (isNumber(value1) && isNumber(value2)) {
         switch (relation) {
             case 'EQ': return value1 === value2;
@@ -57,59 +72,58 @@ function doRelation(relation: Relation, value1: Value, value2: Value): Value {
             case 'GEQ': return value1 >= value2;
             case 'LEQ': return value1 <= value2;
             case 'NEQ': return value1 !== value2;
-            default: return false;
+            default: return { message: "Operation not found."};
         }
     }
-    return false;
+    return { message: "ERROR! Received non-matching or non-valid types." };
 }
 
 function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, Store>] {
     switch (prog.type) {
         case 'Sequence': {
             if (prog.children.left && prog.children.right) {
-                const [_, store1]: [Value, Map<string, Store>] = interpret(prog.children.left, store);
+                const [maybeError, store1]: [Value, Map<string, Store>] = interpret(prog.children.left, store);
+                if (isERROR(maybeError)) return [maybeError, store1];
+
                 const [value, store2]: [Value, Map<string, Store>] = interpret(prog.children.right, store1);
+                if (isERROR(value)) return [value, store2];
+
                 return [value, store2];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed sequence.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed sequence." }, store]
         }
         case 'Assignment': {
             if (prog.children.argument && prog.properties.name && (prog.properties.constant !== undefined)) {
                 const [value, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
+                if (isERROR(value)) return [value, store1];
+
                 if (store1.get(prog.properties.name)?.isConst) {
-                    const error = new Map();
-                    error.set("ERROR! Reassigning a constant variable.", -1);
-                    return [-1, error];
+                    return [{ message : `ERROR! Attempted to reassign ${prog.properties.name} but it is a constant variable.` }, store]
                 }
 
                 return [0, store1.set(prog.properties.name, { value: value, isConst: prog.properties.constant})];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed assignment.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed assignment." }, store]
         }
         case 'Conditional': {
             if (prog.children.argument && prog.children.left && prog.children.right) {
                 const [value1, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
+                if (isERROR(value1)) return [value1, store1];
+
                 if (isBoolean(value1)) {
                     const [value2, store2] = value1 ?
                         interpret(prog.children.left, store1) :
                         (prog.properties.type === "if-then-else" ? 
                             interpret(prog.children.right, store1) :
-                            [0, store1]);
+                            [0, store1]); // Placeholder
+                    if (isERROR(value2)) return [value2, store2];
 
                     return [value2, store2];
                 } else {
-                    const error = new Map();
-                    error.set("ERROR! Non-boolean condition", -1);
-                    return [-1, error];
+                    return [{ message : "ERROR! Non-boolean condition" }, store]
                 }
             }
-            const error = new Map();
-            error.set("ERROR! Malformed conditional.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed conditional." }, store]
         }
         case 'Loop': {
             if (prog.properties.type && prog.children.left && prog.children.argument) {
@@ -118,102 +132,108 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
                 let value: Value = -1;
                 if (prog.properties.type === "Repeat") {
                     [value, currStore] = interpret(prog.children.left, store);
+                    if (isERROR(value)) return [value, currStore];
                 }
 
                 [cond, currStore] = interpret(prog.children.argument, currStore);
+                if (isERROR(cond)) return [cond, currStore];
+
                 while (prog.properties.type === "While" ? cond : !cond) {
                     [value, currStore] = interpret(prog.children.left, currStore);
+                    if (isERROR(value)) return [value, currStore];
+
                     [cond, currStore] = interpret(prog.children.argument, currStore);
+                    if (isERROR(cond)) return [cond, currStore];
                 }
                 return [value, currStore];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed loop.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed loop." }, store]
         }
         case 'Relation': {
             if (prog.children.left && prog.children.right && prog.properties.relation) {
                 const [value1, store1]: [Value, Map<string, Store>] = interpret(prog.children.left, store);
+                if (isERROR(value1)) return [value1, store1];
+
                 const [value2, store2]: [Value, Map<string, Store>] = interpret(prog.children.right, store1);
+                if (isERROR(value2)) return [value2, store2];
+
                 const res = doRelation(prog.properties.relation, value1, value2);
+                if (isERROR(res)) return [res, store2];
 
                 return [res, store2];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed relation.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed relation." }, store]
         }
         case 'BinaryOperation': {
             if (prog.children.left && prog.children.right && prog.properties.operation) {
                 const [value1, store1]: [Value, Map<string, Store>] = interpret(prog.children.left, store);
+                if (isERROR(value1)) return [value1, store1];
+
                 const [value2, store2]: [Value, Map<string, Store>] = interpret(prog.children.right, store1);
+                if (isERROR(value2)) return [value2, store2];
+
                 const res: Value = doOperation(prog.properties.operation, value1, value2);
+                if (isERROR(res)) return [res, store2];
+
                 return [res, store2];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed binary operation.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed binary operation." }, store]
         }
         case 'UnaryOperation': {
             if (prog.children.argument && prog.properties.operation) {
                 const [value, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
+                if (isERROR(value)) return [value, store1];
+
                 const res: Value = doUnary(prog.properties.operation, value);
+                if (isERROR(res)) return [res, store1];
+
                 return [res, store1];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed unary operation.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed unary operation." }, store]
         }
         case 'Bracket': {
             if (prog.children.argument) {
                 const [value, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
+                if (isERROR(value)) return [value, store1];
+
                 return [value, store1];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed bracket.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed bracket." }, store]
         }
         case 'Variable': {
             if (prog.properties.name) {
                 const value: Store | undefined = store.get(prog.properties.name);
-                const error = new Map();
-                error.set("ERROR! Variable not found.", -1);
-                return value ? [value.value, store] : [-1, error];
+                const res = value ? value.value : { message : `ERROR! Variable ${prog.properties.name} not found.` };
+
+                if (isERROR(res)) return [res, store];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed variable access.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed variable access." }, store]
         }
         case 'Number': {
             if  (prog.properties.significand) {
                 const value: Value = parseFloat(prog.properties.significand);
                 return [value, store];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed number.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed number." }, store]
         }
         case 'Boolean': {
             if (prog.properties.significand) {
                 const value: Value = prog.properties.significand === "True";
                 return [value, store];
             }
-            const error = new Map();
-            error.set("ERROR! Malformed boolean.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Malformed boolean." }, store]
         }
         case 'Unknown': {
-            const error = new Map();
-            error.set("ERROR! Unknown instruction.", -1);
-            return [-1, error];
+            return [{ message : "ERROR! Unknown instruction." }, store]
         }
     }
 }
 
 export default function (prog: AST): Value {
-    const [value, store] = interpret(prog, new Map());
-    if (value === -1) {
-        console.log(store);
+    const [value, _] = interpret(prog, new Map());
+    if (isERROR(value)) {
+        console.log(value.message);
+        return -1
     }
     return value;
 }

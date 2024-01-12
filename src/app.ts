@@ -51,7 +51,7 @@ const ASTstringify = (ast: AST) : string => {
                 returnString = "|: " + fst + sep + snd + " :|";
                 break;
             }
-            returnString = "Bad Conditional";
+            returnString = "Bad Loop";
             break;
         }
         case "Variable": {
