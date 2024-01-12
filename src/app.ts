@@ -39,6 +39,19 @@ const ASTstringify = (ast: AST) : string => {
             returnString = "Bad Conditional";
             break;
         }
+        case "Loop": {
+            if (ast.children.argument && ast.children.left) {
+                const cond = ASTstringify(ast.children.argument);
+                const seq = ASTstringify(ast.children.left);
+                const sep = ast.properties.type === "While" ? "? " : " ?";
+                const fst = ast.properties.type === "While" ? cond : seq;
+                const snd = ast.properties.type === "While" ? seq : cond;
+                returnString = "|: " + fst + sep + snd + " :|";
+                break;
+            }
+            returnString = "Bad Conditional";
+            break;
+        }
         case "Variable": {
             returnString = ast.properties.name ?? "Unknown";
             break;

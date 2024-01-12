@@ -45,6 +45,10 @@ const lexer = moo.compile({
             Then: ['THEN'],
             Else: ['ELSE'],
             Fi: ['ENDIF'],
+            Repeat: ['REPEAT'],
+            Until: ['UNTIL'],
+            While: ['WHILE'],
+            Elihw: ['ENDWHILE'],
             Const: ['CONSTANT'],
             Gate: ['AND', 'OR'],
             Not: ['NOT'],
@@ -91,6 +95,7 @@ export interface Children {
 export type Type = 'Sequence'
                   | 'Assignment'
                   | 'Conditional'
+                  | 'Loop'
                   | 'Relation'
                   | 'BinaryOperation'
                   | 'UnaryOperation'
@@ -214,6 +219,34 @@ const processConditional = (data: PartialAST[]): AST => {
             type: 'Conditional',
             properties: { type: isIfThenElse ? "if-then-else" : "if-then" },
             children: { argument: arg, left: lhs, right: rhs }
+        }
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
+/* Process unbounded recursion.
+Similar to above make the different methods fairly indistinguishable.
+*/
+const processWhile = (data: PartialAST[]): AST => {
+    const type = isToken(data[0]) ? data[0].type : "Unknown";
+    let arg: PartialAST = undefined;
+    let lhs: PartialAST = undefined;
+
+    if (type === "While") {
+        arg = _cloneDeep(data[2]);
+        lhs = _cloneDeep(data[5]);
+    } else if (type === "Repeat") {
+        arg = _cloneDeep(data[8]);
+        lhs = _cloneDeep(data[3]);
+    }
+
+    if (isAST(arg) && isAST(lhs)) {
+        return {
+            type: 'Loop',
+            properties: { type: type },
+            children: { argument: arg, left: lhs }
         }
     } else {
         // This shouldn't trigger
@@ -373,10 +406,12 @@ main   -> _ SEQ _                       {% processMain %}
 # Sequences
 SEQ    -> ASS _ %Sep _ SEQ              {% processSequence %}
         | COND _ %Sep _ SEQ             {% processSequence %}
+        | LOOP _ %Sep _ SEQ             {% processSequence %}
         | REL _ %Sep _ SEQ              {% processSequence %}
         | ADDSUB _ %Sep _ SEQ           {% processSequence %}
         | ASS                           {% id %}
         | COND                          {% id %}
+        | LOOP                          {% id %}
         | REL                           {% id %}
         | ADDSUB                        {% id %}
 
@@ -398,6 +433,14 @@ COND   -> %If _ REL _ %Then %Sep
             _ SEQ %Sep
             _ %Else _ _ COND            {% processConditional %}
 #                   ^^^ this is a hack to act like the first case
+
+# Loops (just while for now)
+LOOP   -> %While _ REL %Sep
+            _ SEQ %Sep
+            _ %Elihw                    {% processWhile %}
+        | %Repeat %Sep
+            _ SEQ %Sep
+            _ %Until _ REL              {% processWhile %}
 
 # Relations
 REL    -> ADDSUB _ %Rel _ ADDSUB        {% processRelation %}

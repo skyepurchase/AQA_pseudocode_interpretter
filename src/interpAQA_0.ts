@@ -111,6 +111,26 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
             error.set("ERROR! Malformed conditional.", -1);
             return [-1, error];
         }
+        case 'Loop': {
+            if (prog.properties.type && prog.children.left && prog.children.argument) {
+                let currStore: Map<string, Store> = store;
+                let cond: Value = -1;
+                let value: Value = -1;
+                if (prog.properties.type === "Repeat") {
+                    [value, currStore] = interpret(prog.children.left, store);
+                }
+
+                [cond, currStore] = interpret(prog.children.argument, currStore);
+                while (prog.properties.type === "While" ? cond : !cond) {
+                    [value, currStore] = interpret(prog.children.left, currStore);
+                    [cond, currStore] = interpret(prog.children.argument, currStore);
+                }
+                return [value, currStore];
+            }
+            const error = new Map();
+            error.set("ERROR! Malformed loop.", -1);
+            return [-1, error];
+        }
         case 'Relation': {
             if (prog.children.left && prog.children.right && prog.properties.relation) {
                 const [value1, store1]: [Value, Map<string, Store>] = interpret(prog.children.left, store);
