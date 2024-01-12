@@ -435,7 +435,7 @@ const processCall = (data: PartialAST[]): AST => {
         return {
             type: "Call",
             properties: { name: id.text },
-            children: { params: params }
+            children: { argument: params }
         }
     } else {
         // This shouldn't trigger
