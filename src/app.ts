@@ -7,7 +7,9 @@ function isAST(param: AST | { error: unknown }): param is AST {
 }
 
 const ASTstringify = (ast: AST) : string => {
-    const sep: string = ast.children.left && ast.children.right ? ", " : "";
+    const sep: string = ast.type === "Sequence" ?
+        "; " :
+        (ast.children.left && ast.children.right ? ", " : "");
     const childrenString: string = ast.children.argument ?
         ASTstringify(ast.children.argument) :
         (ast.children.left ? ASTstringify(ast.children.left) : "") + sep + 
@@ -21,7 +23,7 @@ const ASTstringify = (ast: AST) : string => {
             break;
         }
         case "Assignment": {
-            const start: string = ast.properties.constant ? "{" : ": ";
+            const start: string = ast.properties.constant ? "{" : " => ";
             const end: string = ast.properties.constant ? "}" : "";
             returnString = (ast.properties.name ?? "Unknown") + start + childrenString + end;
             break;
@@ -57,7 +59,7 @@ const ASTstringify = (ast: AST) : string => {
             break;
         }
         case "Sequence": {
-            returnString = "[" + childrenString + "]";
+            returnString = childrenString;
             break;
         }
         case "Bracket": {
