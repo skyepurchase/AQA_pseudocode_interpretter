@@ -54,6 +54,14 @@ const ASTstringify = (ast: AST) : string => {
             returnString = "Bad Loop";
             break;
         }
+        case "Output": {
+            returnString = "<<" + childrenString + ">>";
+            break;
+        }
+        case "Arguments": {
+            returnString = childrenString;
+            break;
+        }
         case "Variable": {
             returnString = ast.properties.name ?? "Unknown";
             break;
@@ -104,7 +112,8 @@ readline.on("line", (line: string) => {
         const parse = parseProgram(input);
 
         if (isAST(parse)) {
-            console.log(interpretProgram(parse), "\n+++++++++++++\n\n++++INPUT++++");
+            interpretProgram(parse)
+            console.log("+++++++++++++\n\n++++INPUT++++");
         }
 
         input = "";

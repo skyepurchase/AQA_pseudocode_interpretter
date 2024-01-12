@@ -38,6 +38,7 @@ const lexer = moo.compile({
     Div: ['/'],
     LBra: ['('],
     RBra: [')'],
+    Com: [','],
     // TODO: follow the pseudocode exactly: ≠, ≤, ≥
     Rel: ['=', '<', '>', '!=', '<=', '>='],
     Id: { match: /[a-zA-Z]\w*/, type: keywordTransformSafe({
@@ -52,6 +53,7 @@ const lexer = moo.compile({
             Const: ['CONSTANT'],
             Gate: ['AND', 'OR'],
             Not: ['NOT'],
+            Out: ['OUTPUT'],
             Bool: ['True', 'False'],
         })
     }
@@ -99,6 +101,8 @@ export type Type = 'Sequence'
                   | 'Relation'
                   | 'BinaryOperation'
                   | 'UnaryOperation'
+                  | 'Output'
+                  | 'Arguments'
                   | 'Bracket'
                   | 'Variable'
                   | 'Number'
@@ -331,6 +335,37 @@ const processUnaryOp = (data: PartialAST[]): AST => {
     }
 }
 
+/* process output. Should be super easy. */
+const processOutput = (data: PartialAST[]): AST => {
+    let arg = _cloneDeep(data[2]);
+    if (isAST(arg)) {
+        return {
+            type: 'Output',
+            properties: {},
+            children: { argument: arg }
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
+/* process output arguments. Should also be super easy. */
+const proccessArgs = (data: PartialAST[]): AST => {
+    let lhs = _cloneDeep(data[0]);
+    let rhs = _cloneDeep(data[4]);
+    if (isAST(lhs) && isAST(rhs)) {
+        return {
+            type: 'Arguments',
+            properties: {},
+            children: { left: lhs, right: rhs }
+        };
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
 /* processBrackets.
 Just signify that the expression is in brackets
 */
@@ -409,11 +444,13 @@ SEQ    -> ASS _ %Sep _ SEQ              {% processSequence %}
         | LOOP _ %Sep _ SEQ             {% processSequence %}
         | REL _ %Sep _ SEQ              {% processSequence %}
         | ADDSUB _ %Sep _ SEQ           {% processSequence %}
+        | OUT _ %Sep _ SEQ              {% processSequence %}
         | ASS                           {% id %}
         | COND                          {% id %}
         | LOOP                          {% id %}
         | REL                           {% id %}
         | ADDSUB                        {% id %}
+        | OUT                           {% id %}
 
 # Assignment
 ASS    -> %Id _ %Ass _ VAL              {% processAssignment %}
@@ -433,6 +470,7 @@ COND   -> %If _ REL _ %Then %Sep
             _ SEQ %Sep
             _ %Else _ _ COND            {% processConditional %}
 #                   ^^^ this is a hack to act like the first case
+# THIS MAKES IT AMBIGUOUS and should be removed in a used version
 
 # Loops (just while for now)
 LOOP   -> %While _ REL %Sep
@@ -459,6 +497,13 @@ ADDSUB -> MULDIV _ %Plus _ ADDSUB       {% processBinOp %}
 # Multiplication and division
 MULDIV -> UN _ %Mul _ MULDIV            {% processBinOp %}
         | UN _ %Div _ MULDIV            {% processFraction %}
+        | UN                            {% id %}
+
+# Output only of variables and numbers
+OUT    -> %Out _ ARG                    {% processOutput %}
+
+# Output arguments
+ARG    -> UN _ %Com _ ARG               {% proccessArgs %}
         | UN                            {% id %}
 
 # Unaries of all kinds

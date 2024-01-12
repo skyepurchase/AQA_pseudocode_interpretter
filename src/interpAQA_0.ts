@@ -5,7 +5,7 @@ interface ERROR {
     message: string
 }
 
-type Value = number | boolean | ERROR
+type Value = number | boolean | string | ERROR
 
 interface Store {
     value: Value,
@@ -191,11 +191,31 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
             }
             return [{ message : "ERROR! Malformed unary operation." }, store]
         }
-        case 'Bracket': {
+        case 'Output': {
             if (prog.children.argument) {
                 const [value, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
                 if (isERROR(value)) return [value, store1];
 
+                console.log(value);
+                return [value, store1];
+            }
+            return [{ message: "ERROR! Malformed output statement." }, store]
+        }
+        case 'Arguments': {
+            if (prog.children.left && prog.children.right) {
+                const [value1, store1]: [Value, Map<string, Store>] = interpret(prog.children.left, store);
+                if (isERROR(value1)) return [value1, store1];
+
+                const [value2, store2]: [Value, Map<string, Store>] = interpret(prog.children.right, store);
+                if (isERROR(value2)) return [value2, store2];
+
+                return [value1 + " " + value2, store2];
+            }
+            return [{ message: "ERROR! Malformed arguments." }, store]
+        }
+        case 'Bracket': {
+            if (prog.children.argument) {
+                const [value, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
                 return [value, store1];
             }
             return [{ message : "ERROR! Malformed bracket." }, store]
@@ -205,7 +225,7 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
                 const value: Store | undefined = store.get(prog.properties.name);
                 const res = value ? value.value : { message : `ERROR! Variable ${prog.properties.name} not found.` };
 
-                if (isERROR(res)) return [res, store];
+                return [res, store];
             }
             return [{ message : "ERROR! Malformed variable access." }, store]
         }
@@ -229,11 +249,9 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
     }
 }
 
-export default function (prog: AST): Value {
+export default function (prog: AST): void {
     const [value, _] = interpret(prog, new Map());
     if (isERROR(value)) {
         console.log(value.message);
-        return -1
     }
-    return value;
 }
