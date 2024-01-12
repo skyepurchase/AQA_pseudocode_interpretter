@@ -1,11 +1,14 @@
 import { isBoolean, isNumber } from 'lodash';
+import _cloneDeep from 'lodash/cloneDeep';
 import { AST, Operation, Relation } from './Grammar'
 
 interface ERROR {
     message: string
 }
 
-type Value = number | boolean | string | ERROR
+interface VOID {};
+
+type Value = number | boolean | string | ERROR | VOID
 
 interface Variable {
     value: Value,
@@ -31,6 +34,8 @@ function isSubroutine(param: Store): param is Subroutine {
 function isERROR(param: Value): param is ERROR {
     return (param as ERROR).message !== undefined;
 }
+
+const VOID: VOID = {};
 
 function doOperation(operation: Operation, value1: Value, value2: Value): Value {
     if (isERROR(value1)) return value1;
@@ -101,6 +106,50 @@ function getParams(parameters: AST, prevParams: string[] = []): string[] {
     if (name) prevParams.push(name)
 
     return otherParms ? getParams(otherParms, prevParams) : prevParams;
+}
+
+function runProgram(subroutine: Subroutine, parameters: AST, store: Map<string, Store>): [Value, Map<string, Store>] {
+    const params: string[] = getParams(parameters);
+    if (params.length !== subroutine.parameters.length) {
+        return [{ message: `ERROR! Incorrect number of parameters provided. Expected ${subroutine.parameters.length} received ${params.length}` }, store]
+    }
+
+    // Push all the values onto the stack
+    const functionStore: Map<string, Store> = _cloneDeep(store);
+    for (let i = 0; i < params.length; i++) {
+        const variable: Store | undefined = store.get(params[i]);
+        if (variable !== undefined && isVariable(variable)) {
+            functionStore.set(subroutine.parameters[i], { value: variable.value, isConst: false });
+        } else {
+            return [{ message: `ERROR! Variable ${params[i]} not found or not a variable.` }, store];
+        }
+    }
+
+    // Run the subroutine
+    const [_, store1]: [Value, Map<string, Store>] = interpret(subroutine.program, functionStore);
+
+    // Get return value if it exists
+    let [res, store2]: [Value, Map<string, Store>] = [VOID, store1];
+    if (subroutine.return) {
+        [res, store2] = interpret(subroutine.return, store1);
+    }
+
+    // Remove scoped variables (readding masked global variables)
+    params.forEach(
+        function(parameter: string): void {
+            store2.delete(parameter);
+        }
+    );
+    store.forEach(
+        function(value: Store, parameter: string): void {
+            if (!store2.has(parameter)) {
+                store2.set(parameter, value);
+            }
+        }
+    );
+
+    // And finally return the result
+    return [res, store2];
 }
 
 
@@ -260,15 +309,28 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
                 const [value, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
                 return [value, store1];
             }
-            return [{ message : "ERROR! Malformed bracket." }, store]
+            return [{ message: "ERROR! Malformed brackets." }, store]
+        }
+        case 'Call': {
+            console.log(prog);
+            if (prog.properties.name && prog.children.argument) {
+                const subProg: Store | undefined = store.get(prog.properties.name);
+                if (subProg === undefined || !isSubroutine(subProg)) {
+                    return [{ message: "ERROR! Tried to call something that is not a subroutine" }, store]
+                } else {
+                    return runProgram(subProg, prog.children.argument, store);
+                }
+            }
+            return [{ message: "ERROR! Malformed call site." }, store]
         }
         case 'Parameters': {
+            return [{ message: "ERROR! Parameters interpretted outside of subroutine." }, store]
         }
         case 'Variable': {
             if (prog.properties.name) {
                 const variable: Store | undefined = store.get(prog.properties.name);
-                if ((variable !== undefined) && !isVariable(variable)) {
-                    return [{ message: "ERROR! Tried to reference something that is not a variable" }, store];
+                if (variable !== undefined && !isVariable(variable)) {
+                    return [{ message: "ERROR! Tried to reference something that is not a variable." }, store];
                 } else {
                     const res = variable ? variable.value : { message : `ERROR! Variable ${prog.properties.name} not found.` };
                     return [res, store];

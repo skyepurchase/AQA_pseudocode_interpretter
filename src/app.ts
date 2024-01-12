@@ -70,6 +70,10 @@ const ASTstringify = (ast: AST) : string => {
             returnString = "Bad Loop";
             break;
         }
+        case "Call": {
+            returnString = (ast.properties.name ?? "void") + "(" + childrenString + ")";
+            break;
+        }
         case "Parameters": {
             returnString = (ast.properties.name ?? "void") + 
                 (childrenString ? ", " + childrenString : "");

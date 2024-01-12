@@ -110,6 +110,7 @@ export type Type = 'Sequence'
                   | 'Output'
                   | 'Arguments'
                   | 'Bracket'
+                  | 'Call'
                   | 'Parameters'
                   | 'Variable'
                   | 'Number'
@@ -426,6 +427,25 @@ const processBrackets = (data: PartialAST[]): AST => {
     }
 }
 
+/* Process call sites. Very simple */
+const processCall = (data: PartialAST[]): AST => {
+    const id = data[0];
+    const params = data[2];
+    if (isToken(id) && isAST(params)) {
+        return {
+            type: "Call",
+            properties: { name: id.text },
+            children: { params: params }
+        }
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
+/* Process parameters.
+Generate a cons-list of parameters
+*/
 const processParameters = (data: PartialAST[]): AST => {
     const id = data[0];
     let otherParams: PartialAST = undefined;
@@ -514,6 +534,7 @@ SEQ    -> SUB _ %Sep _ SEQ                      {% processSequence %}
         | REL _ %Sep _ SEQ                      {% processSequence %}
         | ADDSUB _ %Sep _ SEQ                   {% processSequence %}
         | OUT _ %Sep _ SEQ                      {% processSequence %}
+        | CALL _ %Sep _ SEQ                      {% processSequence %}
         | SUB                                   {% id %}
         | ASS                                   {% id %}
         | COND                                  {% id %}
@@ -521,8 +542,10 @@ SEQ    -> SUB _ %Sep _ SEQ                      {% processSequence %}
         | REL                                   {% id %}
         | ADDSUB                                {% id %}
         | OUT                                   {% id %}
+        | CALL                                  {% id %}
 
 # Defining a subroutine
+# //TODO allow empty subroutines that just return
 SUB    -> %Sub _ %Id %LBra PARAM %RBra %Sep
             SEQ %Sep
             %Bus                                {% processSubroutine %}
@@ -594,6 +617,9 @@ UN     -> %Plus _ UN                            {% processUnaryOp %}
 BRA    -> %LBra _ ADDSUB _ %RBra                {% processBrackets %}
         | NUM                                   {% id %}
         | VAR                                   {% id %}
+
+# Subroutine calling
+CALL    -> %Id %LBra PARAM %RBra                {% processCall %}
 
 # Subroutine paramaters
 PARAM  -> %Id _ %Com _ PARAM                    {% processParameters %}
