@@ -7,9 +7,25 @@ interface ERROR {
 
 type Value = number | boolean | string | ERROR
 
-interface Store {
+interface Variable {
     value: Value,
     isConst: boolean
+}
+
+interface Subroutine {
+    program: AST,
+    parameters: string[],
+    return: AST | undefined
+}
+
+type Store = Variable | Subroutine;
+
+function isVariable(param: Store): param is Variable {
+    return (param as Variable).value !== undefined;
+}
+
+function isSubroutine(param: Store): param is Subroutine {
+    return (param as Subroutine).program !== undefined;
 }
 
 function isERROR(param: Value): param is ERROR {
@@ -78,6 +94,16 @@ function doRelation(relation: Relation, value1: Value, value2: Value): Value {
     return { message: "ERROR! Received non-matching or non-valid types." };
 }
 
+function getParams(parameters: AST, prevParams: string[] = []): string[] {
+    const name = parameters.properties.name;
+    const otherParms = parameters.children.argument;
+
+    if (name) prevParams.push(name)
+
+    return otherParms ? getParams(otherParms, prevParams) : prevParams;
+}
+
+
 function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, Store>] {
     switch (prog.type) {
         case 'Sequence': {
@@ -92,13 +118,29 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
             }
             return [{ message : "ERROR! Malformed sequence." }, store]
         }
+        case 'Subroutine': {
+            if (prog.properties.name && prog.children.argument && prog.children.params) {
+                const name: string = prog.properties.name;
+                const subProg: AST = prog.children.argument;
+                const params: string[] = getParams(prog.children.params);
+                let ret: AST | undefined = prog.children.ret;
+
+                const newStore: Map<string, Store> = store.set(name, { program: subProg, parameters: params, return: ret })
+                return [0, newStore]; // placeholder value
+            }
+            return [{ message : "ERROR! Subroutine definition." }, store]
+        }
         case 'Assignment': {
             if (prog.children.argument && prog.properties.name && (prog.properties.constant !== undefined)) {
                 const [value, store1]: [Value, Map<string, Store>] = interpret(prog.children.argument, store);
                 if (isERROR(value)) return [value, store1];
-
-                if (store1.get(prog.properties.name)?.isConst) {
-                    return [{ message : `ERROR! Attempted to reassign ${prog.properties.name} but it is a constant variable.` }, store]
+                const variable: Store | undefined = store1.get(prog.properties.name);
+                if ((variable !== undefined) && !isVariable(variable)) {
+                    return [{ message: "ERROR! Tried to assign to something that is not a variable" }, store1]
+                } else {
+                    if (variable?.isConst) {
+                        return [{ message : `ERROR! Attempted to reassign ${prog.properties.name} but it is a constant variable.` }, store]
+                    }
                 }
 
                 return [0, store1.set(prog.properties.name, { value: value, isConst: prog.properties.constant})];
@@ -220,12 +262,18 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
             }
             return [{ message : "ERROR! Malformed bracket." }, store]
         }
+        case 'Parameters': {
+        }
         case 'Variable': {
             if (prog.properties.name) {
-                const value: Store | undefined = store.get(prog.properties.name);
-                const res = value ? value.value : { message : `ERROR! Variable ${prog.properties.name} not found.` };
+                const variable: Store | undefined = store.get(prog.properties.name);
+                if ((variable !== undefined) && !isVariable(variable)) {
+                    return [{ message: "ERROR! Tried to reference something that is not a variable" }, store];
+                } else {
+                    const res = variable ? variable.value : { message : `ERROR! Variable ${prog.properties.name} not found.` };
+                    return [res, store];
+                }
 
-                return [res, store];
             }
             return [{ message : "ERROR! Malformed variable access." }, store]
         }
@@ -250,8 +298,11 @@ function interpret(prog: AST, store: Map<string, Store>): [Value, Map<string, St
 }
 
 export default function (prog: AST): void {
-    const [value, _] = interpret(prog, new Map());
+    const [value, store] = interpret(prog, new Map());
     if (isERROR(value)) {
         console.log(value.message);
     }
+    console.log("\n+++STORE+++");
+    console.log(store);
+    console.log("+++++++++++\n");
 }

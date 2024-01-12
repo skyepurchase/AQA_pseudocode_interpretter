@@ -50,6 +50,9 @@ const lexer = moo.compile({
             Until: ['UNTIL'],
             While: ['WHILE'],
             Elihw: ['ENDWHILE'],
+            Sub: ['SUBROUTINE'],
+            Bus: ['ENDSUBROUTINE'],
+            Ret: ['RETURN'],
             Const: ['CONSTANT'],
             Gate: ['AND', 'OR'],
             Not: ['NOT'],
@@ -91,10 +94,13 @@ export interface Property {
 export interface Children {
     left?: AST,
     right?: AST,
-    argument?: AST
+    argument?: AST,
+    params?: AST,
+    ret?: AST
 }
 
 export type Type = 'Sequence'
+                  | 'Subroutine'
                   | 'Assignment'
                   | 'Conditional'
                   | 'Loop'
@@ -104,6 +110,7 @@ export type Type = 'Sequence'
                   | 'Output'
                   | 'Arguments'
                   | 'Bracket'
+                  | 'Parameters'
                   | 'Variable'
                   | 'Number'
                   | 'Boolean'
@@ -178,6 +185,42 @@ const processSequence = (data: PartialAST[]): AST => {
         return _cloneDeep(UNKNOWN);
     }
 }
+
+/* Process subroutine.
+This has programs in it's properties as these will be run later.
+Some subroutines can return values based on expressions.
+The parameters will need to be bound on call.
+*/
+const processSubroutine = (data: PartialAST[]): AST => {
+    const id = data[2]
+    const params = data[4]
+    const prog = data[7]
+    let ret = undefined;
+
+    if (data.length > 10) {
+        ret = data[11];
+    }
+
+    if (isToken(id) && isAST(params) && isAST(prog)) {
+        if (isAST(ret)) {
+            return {
+                type: 'Subroutine',
+                properties: { name: id.text },
+                children: { params: params, argument: prog, ret: ret }
+            }
+        } else {
+            return {
+                type: 'Subroutine',
+                properties: { name: id.text },
+                children: { params: params, argument: prog }
+            }
+        }
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
 
 /* Porcess variable and constant assignment.
 Need to check the length of the data as there may or may not be
@@ -383,6 +426,31 @@ const processBrackets = (data: PartialAST[]): AST => {
     }
 }
 
+const processParameters = (data: PartialAST[]): AST => {
+    const id = data[0];
+    let otherParams: PartialAST = undefined;
+    if (data.length > 1) {
+        otherParams = data[4];
+    }
+    if (isToken(id)) {
+        if (isAST(otherParams)) {
+            return {
+                type: 'Parameters',
+                properties: { name: id.text },
+                children: { argument: otherParams }
+            }
+        }
+        return {
+            type: 'Parameters',
+            properties: { name: id.text},
+            children: {}
+        }
+    } else {
+        // This shouldn't trigger
+        return _cloneDeep(UNKNOWN);
+    }
+}
+
 /* Process floats and integers. Just return that boy. */
 const processNumber = (data: PartialAST[]): AST => {
     const op = data[0];
@@ -436,25 +504,36 @@ const processBoolean = (data: PartialAST[]): AST => {
 
 # The Almighty Grammar
 
-main   -> _ SEQ _                       {% processMain %}
+main   -> _ SEQ _                               {% processMain %}
 
 # Sequences
-SEQ    -> ASS _ %Sep _ SEQ              {% processSequence %}
-        | COND _ %Sep _ SEQ             {% processSequence %}
-        | LOOP _ %Sep _ SEQ             {% processSequence %}
-        | REL _ %Sep _ SEQ              {% processSequence %}
-        | ADDSUB _ %Sep _ SEQ           {% processSequence %}
-        | OUT _ %Sep _ SEQ              {% processSequence %}
-        | ASS                           {% id %}
-        | COND                          {% id %}
-        | LOOP                          {% id %}
-        | REL                           {% id %}
-        | ADDSUB                        {% id %}
-        | OUT                           {% id %}
+SEQ    -> SUB _ %Sep _ SEQ                      {% processSequence %}
+        | ASS _ %Sep _ SEQ                      {% processSequence %}
+        | COND _ %Sep _ SEQ                     {% processSequence %}
+        | LOOP _ %Sep _ SEQ                     {% processSequence %}
+        | REL _ %Sep _ SEQ                      {% processSequence %}
+        | ADDSUB _ %Sep _ SEQ                   {% processSequence %}
+        | OUT _ %Sep _ SEQ                      {% processSequence %}
+        | SUB                                   {% id %}
+        | ASS                                   {% id %}
+        | COND                                  {% id %}
+        | LOOP                                  {% id %}
+        | REL                                   {% id %}
+        | ADDSUB                                {% id %}
+        | OUT                                   {% id %}
+
+# Defining a subroutine
+SUB    -> %Sub _ %Id %LBra PARAM %RBra %Sep
+            SEQ %Sep
+            %Bus                                {% processSubroutine %}
+        | %Sub _ %Id %LBra PARAM %RBra %Sep
+            SEQ %Sep
+            %Ret _ ADDSUB %Sep
+            %Bus                                {% processSubroutine %}
 
 # Assignment
-ASS    -> %Id _ %Ass _ VAL              {% processAssignment %}
-        | %Const _ %Id _ %Ass _ VAL     {% processAssignment %}
+ASS    -> %Id _ %Ass _ VAL                      {% processAssignment %}
+        | %Const _ %Id _ %Ass _ VAL             {% processAssignment %}
 
 # Conditional
 # Horrific in my opinion
@@ -462,75 +541,79 @@ COND   -> %If _ REL _ %Then %Sep
             _ SEQ %Sep
             _ %Else %Sep
             _ SEQ %Sep
-            _ %Fi                       {% processConditional %}
+            _ %Fi                               {% processConditional %}
         | %If _ REL _ %Then %Sep
             _ SEQ %Sep
-            _ %Fi                       {% processConditional %}
+            _ %Fi                               {% processConditional %}
         | %If _ REL _ %Then %Sep
             _ SEQ %Sep
-            _ %Else _ _ COND            {% processConditional %}
+            _ %Else _ _ COND                    {% processConditional %}
 #                   ^^^ this is a hack to act like the first case
 # THIS MAKES IT AMBIGUOUS and should be removed in a used version
 
 # Loops (just while for now)
 LOOP   -> %While _ REL %Sep
             _ SEQ %Sep
-            _ %Elihw                    {% processWhile %}
+            _ %Elihw                            {% processWhile %}
         | %Repeat %Sep
             _ SEQ %Sep
-            _ %Until _ REL              {% processWhile %}
+            _ %Until _ REL                      {% processWhile %}
 
 # Relations
-REL    -> ADDSUB _ %Rel _ ADDSUB        {% processRelation %}
-        | BOOL                          {% id %}
+REL    -> ADDSUB _ %Rel _ ADDSUB                {% processRelation %}
+        | BOOL                                  {% id %}
 
 # Assignment values
-VAL    -> ADDSUB                        {% id %}
-        | VAR                           {% id %}
-        | BOOL                          {% id %}
-
-# Addition and subtraction
-ADDSUB -> MULDIV _ %Plus _ ADDSUB       {% processBinOp %}
-        | MULDIV _ %Minus _ ADDSUB      {% processBinOp %}
-        | MULDIV                        {% id %}
-
-# Multiplication and division
-MULDIV -> UN _ %Mul _ MULDIV            {% processBinOp %}
-        | UN _ %Div _ MULDIV            {% processFraction %}
-        | UN                            {% id %}
+VAL    -> ADDSUB                                {% id %}
+        | VAR                                   {% id %}
+        | BOOL                                  {% id %}
 
 # Output only of variables and numbers
-OUT    -> %Out _ ARG                    {% processOutput %}
+OUT    -> %Out _ ARG                            {% processOutput %}
 
 # Output arguments
-ARG    -> UN _ %Com _ ARG               {% proccessArgs %}
-        | UN                            {% id %}
+ARG    -> ADDSUB _ %Com _ ARG                   {% proccessArgs %}
+        | ADDSUB                                {% id %}
+
+# Addition and subtraction
+ADDSUB -> MULDIV _ %Plus _ ADDSUB               {% processBinOp %}
+        | MULDIV _ %Minus _ ADDSUB              {% processBinOp %}
+        | MULDIV                                {% id %}
+
+# Multiplication and division
+MULDIV -> UN _ %Mul _ MULDIV                    {% processBinOp %}
+        | UN _ %Div _ MULDIV                    {% processFraction %}
+        | UN                                    {% id %}
 
 # Unaries of all kinds
-UN     -> %Plus _ UN                    {% processUnaryOp %}
-        | %Minus _ UN                   {% processUnaryOp %}
-        | BRA                           {% id %}
+UN     -> %Plus _ UN                            {% processUnaryOp %}
+        | %Minus _ UN                           {% processUnaryOp %}
+        | BRA                                   {% id %}
 
 # Brackets
-BRA    -> %LBra _ ADDSUB _ %RBra        {% processBrackets %}
-        | NUM                           {% id %}
-        | VAR                           {% id %}
+BRA    -> %LBra _ ADDSUB _ %RBra                {% processBrackets %}
+        | NUM                                   {% id %}
+        | VAR                                   {% id %}
+
+# Subroutine paramaters
+PARAM  -> %Id _ %Com _ PARAM                    {% processParameters %}
+        | %Id                                   {% processParameters %}
 
 # Variables
-VAR    -> %Id                           {% processVariable %}
+VAR    -> %Id                                   {% processVariable %}
 
 # Integers
-NUM    -> %Int                          {% processNumber %}
-        | %Float                        {% processNumber %}
+NUM    -> %Int                                  {% processNumber %}
+        | %Float                                {% processNumber %}
 
 # Booleans
-BOOL   -> BBRA _ %Gate _ BBRA           {% processBinOp %}
-        | %Not _ BBRA                   {% processUnaryOp %}
-        | %Bool                         {% processBoolean %}
+BOOL   -> BBRA _ %Gate _ BBRA                   {% processBinOp %}
+        | %Not _ BBRA                           {% processUnaryOp %}
+        | %Bool                                 {% processBoolean %}
 
 # Boolean brackets
-BBRA   -> %LBra _ REL _ %RBra           {% processBrackets %}
-        | BOOL                          {% id %}
+BBRA   -> %LBra _ REL _ %RBra                   {% processBrackets %}
+        | BOOL                                  {% id %}
 
 # Whitespace. The important thing here is that the postprocessor
 # is a null-returning function. This is a memory efficiency trick.

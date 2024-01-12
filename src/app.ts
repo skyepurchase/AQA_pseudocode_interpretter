@@ -22,6 +22,22 @@ const ASTstringify = (ast: AST) : string => {
             returnString = ast.properties.significand ?? "NaN";
             break;
         }
+        case "Subroutine": {
+            if (ast.children.params) {
+                const name = ast.properties.name ?? "Unknown";
+                const params = ASTstringify(ast.children.params);
+                
+                if (ast.children.ret) {
+                    const ret = ASTstringify(ast.children.ret);
+                    returnString = name + "(" + params + ")" + "{" + childrenString + "; RET: " + ret + "}";
+                } else {
+                    returnString = name + "(" + params + ")" + "{" + childrenString + "}";
+                }
+                break;
+            }
+            returnString = "Bad Subroutine";
+            break;
+        }
         case "Assignment": {
             const start: string = ast.properties.constant ? "{" : " => ";
             const end: string = ast.properties.constant ? "}" : "";
@@ -52,6 +68,11 @@ const ASTstringify = (ast: AST) : string => {
                 break;
             }
             returnString = "Bad Loop";
+            break;
+        }
+        case "Parameters": {
+            returnString = (ast.properties.name ?? "void") + 
+                (childrenString ? ", " + childrenString : "");
             break;
         }
         case "Output": {
